@@ -41,5 +41,22 @@ func Init() (slog.Handler, string) {
 		Level:      level,
 		AddSource:  true,
 		TimeFormat: "02 Jan 2006 03:04:05 PM",
+		ReplaceAttr: func(groups []string, a slog.Attr) slog.Attr {
+			if a.Key == slog.LevelKey && len(groups) == 0 {
+				switch l := a.Value.Any().(slog.Level); l {
+				case slog.LevelDebug:
+					return slog.String(slog.LevelKey, "DEBUG")
+				case slog.LevelInfo:
+					return tint.Attr(10, slog.String(slog.LevelKey, "INFO"))
+				case slog.LevelWarn:
+					return tint.Attr(11, slog.String(slog.LevelKey, "WARN"))
+				case slog.LevelError:
+					return tint.Attr(9, slog.String(slog.LevelKey, "ERROR"))
+				default:
+					return a
+				}
+			}
+			return a
+		},
 	}), error
 }
