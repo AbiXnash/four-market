@@ -1,7 +1,11 @@
 package main
 
 import (
+	"context"
 	"log/slog"
+	"os"
+	"os/signal"
+	"syscall"
 
 	"github.com/AbiXnash/4-market/internal/logger"
 	"github.com/AbiXnash/4-market/internal/server"
@@ -20,5 +24,8 @@ func init() {
 }
 
 func main() {
-	server.Start()
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
+
+	server.Start(ctx)
 }
