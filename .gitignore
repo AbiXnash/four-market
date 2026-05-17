@@ -1,0 +1,47 @@
+# Binaries
+bin/
+dist/
+build/
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+
+# Go build files
+*.test
+*.out
+coverage.out
+
+# Environment files
+*.env
+.env
+.env.local
+
+# Logs
+*.log
+
+# Dependency directories
+vendor/
+
+# IDE
+.vscode/
+.idea/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# JetBrains
+*.iml
+
+# Temporary files
+tmp/
+temp/
+
+# Air live reload
+.air/
+
+# Go workspace
+go.work
+go.work.sum
