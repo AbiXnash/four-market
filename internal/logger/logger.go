@@ -8,7 +8,8 @@ import (
 	"github.com/lmittmann/tint"
 )
 
-func Init() slog.Handler {
+func Init() (slog.Handler, string) {
+	var error string
 
 	logLevel := strings.ToUpper(
 		os.Getenv("LOG_LEVEL"),
@@ -27,6 +28,7 @@ func Init() slog.Handler {
 		level = slog.LevelError
 
 	default:
+		error = "LOG_LEVEL is missing in env. Using INFO as default"
 		level = slog.LevelInfo
 	}
 
@@ -34,5 +36,5 @@ func Init() slog.Handler {
 		Level:      level,
 		AddSource:  true,
 		TimeFormat: "02 Jan 2006 03:04:05 PM",
-	})
+	}), error
 }

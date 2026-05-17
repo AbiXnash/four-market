@@ -8,8 +8,12 @@ import (
 )
 
 func init() {
-	handler := logger.Init()
+	handler, msg := logger.Init()
 	slog.SetDefault(slog.New(handler))
+
+	if msg != "" {
+		slog.Warn(msg)
+	}
 }
 
 func main() {

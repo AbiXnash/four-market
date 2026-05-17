@@ -32,14 +32,12 @@ func LoggerMiddleware(next http.Handler) http.Handler {
 
 		next.ServeHTTP(rw, r)
 
-		duration := time.Since(start).Round(time.Microsecond)
-
-		slog.Info(fmt.Sprintf(
-			"%-6s %-20s %3d %8s",
-			r.Method,
-			r.URL.Path,
-			rw.status,
-			duration,
-		))
+		rec := slog.NewRecord(
+			time.Now(),
+			slog.LevelInfo,
+			fmt.Sprintf("%s | %s | [%d %s] | %s", r.Method, r.URL.Path, rw.status, http.StatusText(rw.status), time.Since(start).Round(time.Microsecond)),
+			0,
+		)
+		_ = slog.Default().Handler().Handle(r.Context(), rec)
 	})
 }
