@@ -13,7 +13,6 @@ type Config struct {
 }
 
 func Load() Config {
-
 	root, err := os.Getwd()
 
 	if err != nil {

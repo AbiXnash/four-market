@@ -22,7 +22,6 @@ func LoggerMiddleware(next http.Handler) http.Handler {
 		w http.ResponseWriter,
 		r *http.Request,
 	) {
-
 		start := time.Now()
 
 		rw := &responseWriter{
