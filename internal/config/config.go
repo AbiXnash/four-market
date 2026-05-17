@@ -23,6 +23,8 @@ func Load() Config {
 
 	envPath := filepath.Join(root, ".env")
 
+	slog.Debug("Looking for env in ", "path", envPath)
+
 	err = godotenv.Load(envPath)
 
 	if err != nil {

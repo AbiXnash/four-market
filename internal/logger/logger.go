@@ -1,6 +1,7 @@
 package logger
 
 import (
+	"fmt"
 	"log/slog"
 	"os"
 	"strings"
@@ -18,6 +19,10 @@ func Init() (slog.Handler, string) {
 	var level slog.Level
 
 	switch logLevel {
+	case "":
+		error = "LOG_LEVEL is missing in env. Using INFO as default"
+		level = slog.LevelInfo
+
 	case "DEBUG":
 		level = slog.LevelDebug
 
@@ -28,7 +33,7 @@ func Init() (slog.Handler, string) {
 		level = slog.LevelError
 
 	default:
-		error = "LOG_LEVEL is missing in env. Using INFO as default"
+		error = fmt.Sprintf("LOG_LEVEL invalid. [%v]", logLevel)
 		level = slog.LevelInfo
 	}
 
