@@ -1,5 +1,37 @@
-package main
+package web
 
-templ login() {
-	<div>Login</div>
+templ LoginForm() {
+	<form>
+		@email()
+		@password()
+		@submit()
+	</form>
+}
+
+templ email() {
+	<label for="email">Email</label>
+	<input
+		id="email"
+		class="input input-login-email"
+		type="email"
+		name="email"
+	/>
+	<br/>
+}
+
+templ password() {
+	<label for="password">Password</label>
+	<input
+		id="password"
+		class="input input-login-password"
+		type="password"
+		name="password"
+	/>
+	<br/>
+}
+
+templ submit() {
+	<button class="submit-login-btn">
+		Login
+	</button>
 }

@@ -9,6 +9,8 @@ import (
 	"github.com/AbiXnash/4-market/internal/handler"
 	"github.com/AbiXnash/4-market/internal/middleware"
 	"github.com/AbiXnash/4-market/internal/response"
+	"github.com/AbiXnash/4-market/web"
+	"github.com/a-h/templ"
 	"github.com/go-chi/chi/v5"
 	chiMiddleware "github.com/go-chi/chi/v5/middleware"
 	"github.com/go-chi/cors"
@@ -60,7 +62,7 @@ func setupMiddleware(r *chi.Mux, cfg config.Config) {
 }
 
 func setupRoutes(r *chi.Mux, cfg config.Config) {
-	r.Get("/", handler.Greet)
+	r.Get("/", templ.Handler(web.LoginForm()).ServeHTTP)
 
 	r.Route("/api/v1", func(r chi.Router) {
 		r.Post("/auth/login", handler.Login)
