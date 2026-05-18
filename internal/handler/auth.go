@@ -3,7 +3,9 @@ package handler
 import (
 	"encoding/json"
 	"errors"
+	"log/slog"
 	"net/http"
+	"strings"
 
 	"github.com/AbiXnash/4-market/internal/dto"
 	"github.com/AbiXnash/4-market/internal/response"
@@ -20,10 +22,23 @@ func NewAuthHandler(svc *service.AuthService) *AuthHandler {
 
 func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 	var req dto.LoginRequest
-	if err := decodeJSON(r, &req); err != nil {
-		response.ValidationError(w, r, "invalid request body")
-		return
+
+	ct := r.Header.Get("Content-Type")
+	if strings.HasPrefix(ct, "application/x-www-form-urlencoded") {
+		if err := r.ParseForm(); err != nil {
+			response.ValidationError(w, r, "invalid form data")
+			return
+		}
+		req.Email = r.FormValue("email")
+		req.Password = r.FormValue("password")
+	} else {
+		if err := decodeJSON(r, &req); err != nil {
+			response.ValidationError(w, r, "invalid request body")
+			return
+		}
 	}
+
+	slog.Debug("Login Request: ", "request", req)
 
 	resp, err := h.service.Login(r.Context(), req)
 	if err != nil {

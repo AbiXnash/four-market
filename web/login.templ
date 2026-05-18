@@ -1,7 +1,10 @@
 package web
 
 templ LoginForm() {
-	<form>
+	<form
+		method="POST"
+		action="/user"
+	>
 		@email()
 		@password()
 		@submit()

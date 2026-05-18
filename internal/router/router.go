@@ -49,7 +49,6 @@ func setupMiddleware(r *chi.Mux, cfg config.Config) {
 		}),
 	))
 	r.Use(middleware.RequestBodyLimiter(cfg.MaxRequestBody))
-	r.Use(middleware.AllowJSONContentType)
 	r.Use(corsHandler(cfg.CORSAllowedOrigins))
 	r.Use(middleware.CSRFProtection(cfg.CORSAllowedOrigins))
 
