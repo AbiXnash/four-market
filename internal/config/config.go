@@ -20,6 +20,9 @@ type Config struct {
 	TLSEnabled         bool
 	TLSCertFile        string
 	TLSKeyFile         string
+	RedisAddr          string
+	RedisPassword      string
+	RedisDB            int
 }
 
 func Load() Config {
@@ -78,6 +81,13 @@ func Load() Config {
 
 	tlsEnabled, _ := strconv.ParseBool(os.Getenv("TLS_ENABLED"))
 
+	redisAddr := os.Getenv("REDIS_ADDR")
+	if redisAddr == "" {
+		redisAddr = "localhost:6379"
+	}
+
+	redisDB, _ := strconv.Atoi(os.Getenv("REDIS_DB"))
+
 	return Config{
 		Port:               port,
 		CORSAllowedOrigins: corsOrigins,
@@ -88,5 +98,8 @@ func Load() Config {
 		TLSEnabled:         tlsEnabled,
 		TLSCertFile:        os.Getenv("TLS_CERT_FILE"),
 		TLSKeyFile:         os.Getenv("TLS_KEY_FILE"),
+		RedisAddr:          redisAddr,
+		RedisPassword:      os.Getenv("REDIS_PASSWORD"),
+		RedisDB:            redisDB,
 	}
 }

@@ -9,6 +9,7 @@ import (
 
 	"github.com/AbiXnash/4-market/internal/config"
 	"github.com/AbiXnash/4-market/internal/handler"
+	redisStore "github.com/AbiXnash/4-market/internal/redis"
 	"github.com/AbiXnash/4-market/internal/repository"
 	"github.com/AbiXnash/4-market/internal/router"
 	"github.com/AbiXnash/4-market/internal/service"
@@ -17,11 +18,21 @@ import (
 func Start(ctx context.Context) {
 	cfg := config.Load()
 
+	rstore := redisStore.NewStoreFromAddr(cfg.RedisAddr, cfg.RedisPassword, cfg.RedisDB)
+	defer rstore.Close()
+
+	if err := rstore.Ping(ctx); err != nil {
+		slog.Warn("redis not available, continuing without it", "error", err)
+	} else {
+		slog.Info("redis connected", "addr", cfg.RedisAddr)
+	}
+
 	userRepo := repository.NewUserRepo()
 	authSvc := service.NewAuthService(userRepo, cfg.JWTSecret, cfg.JWTAccessTTL, cfg.JWTRefreshTTL)
-	authH := handler.NewAuthHandler(authSvc)
+	authH := handler.NewAuthHandler(authSvc, rstore, cfg.JWTSecret, cfg.JWTAccessTTL, cfg.JWTRefreshTTL, cfg.TLSEnabled)
+	userH := handler.NewUserHandler(userRepo)
 
-	r := router.New(cfg, authH)
+	r := router.New(cfg, authH, userH)
 
 	srv := &http.Server{
 		Addr:              fmt.Sprintf(":%s", cfg.Port),

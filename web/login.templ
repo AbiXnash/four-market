@@ -1,14 +1,19 @@
 package web
 
-templ LoginForm() {
-	<form
-		method="POST"
-		action="/user"
-	>
-		@email()
-		@password()
-		@submit()
-	</form>
+templ LoginForm(errMsg ...string) {
+	<div class="login-container">
+		<form method="POST" action="/login">
+			@email()
+			@password()
+			@submit()
+			if len(errMsg) > 0 {
+				<div class="error-message">{ errMsg[0] }</div>
+			}
+		</form>
+		<p class="register-link">
+			Don't have an account? <a href="/register">Register</a>
+		</p>
+	</div>
 }
 
 templ email() {
@@ -18,6 +23,7 @@ templ email() {
 		class="input input-login-email"
 		type="email"
 		name="email"
+		required
 	/>
 	<br/>
 }
@@ -29,12 +35,13 @@ templ password() {
 		class="input input-login-password"
 		type="password"
 		name="password"
+		required
 	/>
 	<br/>
 }
 
 templ submit() {
-	<button class="submit-login-btn">
+	<button class="submit-login-btn" type="submit">
 		Login
 	</button>
 }

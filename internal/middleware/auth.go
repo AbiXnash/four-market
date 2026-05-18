@@ -16,19 +16,28 @@ const UserKey ctxKeyUser = "user"
 func Auth(secret []byte) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			tokenString := ""
+
 			authHeader := r.Header.Get("Authorization")
-			if authHeader == "" {
+			if authHeader != "" {
+				parts := strings.SplitN(authHeader, " ", 2)
+				if len(parts) == 2 && strings.EqualFold(parts[0], "Bearer") {
+					tokenString = parts[1]
+				}
+			}
+
+			if tokenString == "" {
+				if cookie, err := r.Cookie("access_token"); err == nil {
+					tokenString = cookie.Value
+				}
+			}
+
+			if tokenString == "" {
 				response.Unauthorized(w, r)
 				return
 			}
 
-			parts := strings.SplitN(authHeader, " ", 2)
-			if len(parts) != 2 || !strings.EqualFold(parts[0], "Bearer") {
-				response.Error(w, r, http.StatusUnauthorized, "invalid_authorization_header", "invalid authorization header")
-				return
-			}
-
-			claims, err := security.ValidateJWT(parts[1], secret)
+			claims, err := security.ValidateJWT(tokenString, secret)
 			if err != nil {
 				response.Unauthorized(w, r)
 				return
