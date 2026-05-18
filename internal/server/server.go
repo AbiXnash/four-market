@@ -18,14 +18,14 @@ import (
 func Start(ctx context.Context) {
 	cfg := config.Load()
 
-	rstore := redisStore.NewStoreFromAddr(cfg.RedisAddr, cfg.RedisPassword, cfg.RedisDB)
-	defer rstore.Close()
-
-	if err := rstore.Ping(ctx); err != nil {
+	rstore, err := redisStore.Connect(ctx, cfg.RedisAddr, cfg.RedisPassword, cfg.RedisDB)
+	if err != nil {
 		slog.Warn("redis not available, continuing without it", "error", err)
+		rstore = &redisStore.Store{}
 	} else {
 		slog.Info("redis connected", "addr", cfg.RedisAddr)
 	}
+	defer rstore.Close()
 
 	userRepo := repository.NewUserRepo()
 	authSvc := service.NewAuthService(userRepo, cfg.JWTSecret, cfg.JWTAccessTTL, cfg.JWTRefreshTTL)

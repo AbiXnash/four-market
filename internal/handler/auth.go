@@ -174,7 +174,9 @@ func (h *AuthHandler) Refresh(w http.ResponseWriter, r *http.Request) {
 	}
 
 	h.redis.DeleteRefreshToken(r.Context(), refreshToken)
-	h.redis.CreateRefreshToken(r.Context(), userID, newRefreshToken, h.refreshTTL)
+	if err := h.redis.CreateRefreshToken(r.Context(), userID, newRefreshToken, h.refreshTTL); err != nil {
+		slog.Warn("failed to store new refresh token in redis", "error", err)
+	}
 
 	setTokenCookies(w, accessToken, newRefreshToken, h.accessTTL, h.refreshTTL, h.secure)
 
@@ -210,9 +212,7 @@ func (h *AuthHandler) FormLogin(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := h.redis.CreateRefreshToken(r.Context(), claims.UserID, resp.RefreshToken, h.refreshTTL); err != nil {
-		slog.Error("failed to store refresh token in redis", "error", err)
-		response.InternalError(w, r)
-		return
+		slog.Warn("failed to store refresh token in redis, continuing", "error", err)
 	}
 
 	setTokenCookies(w, resp.AccessToken, resp.RefreshToken, h.accessTTL, h.refreshTTL, h.secure)

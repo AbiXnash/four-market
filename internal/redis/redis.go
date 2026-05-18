@@ -19,24 +19,30 @@ type Store struct {
 	client *redis.Client
 }
 
-func NewStore(cfg *redis.Options) *Store {
-	return &Store{client: redis.NewClient(cfg)}
-}
-
-func NewStoreFromAddr(addr, password string, db int) *Store {
-	return NewStore(&redis.Options{
+func Connect(ctx context.Context, addr, password string, db int) (*Store, error) {
+	client := redis.NewClient(&redis.Options{
 		Addr:     addr,
 		Password: password,
 		DB:       db,
 	})
+
+	if err := client.Ping(ctx).Err(); err != nil {
+		client.Close()
+		return nil, err
+	}
+
+	return &Store{client: client}, nil
 }
 
 func (s *Store) Close() error {
+	if s.client == nil {
+		return nil
+	}
 	return s.client.Close()
 }
 
-func (s *Store) Ping(ctx context.Context) error {
-	return s.client.Ping(ctx).Err()
+func (s *Store) IsAvailable() bool {
+	return s.client != nil
 }
 
 func hashToken(token string) string {
@@ -45,11 +51,17 @@ func hashToken(token string) string {
 }
 
 func (s *Store) CreateRefreshToken(ctx context.Context, userID, refreshToken string, ttl time.Duration) error {
+	if s.client == nil {
+		return fmt.Errorf("redis not available")
+	}
 	key := refreshKeyPrefix + hashToken(refreshToken)
 	return s.client.Set(ctx, key, userID, ttl).Err()
 }
 
 func (s *Store) ValidateRefreshToken(ctx context.Context, refreshToken string) (string, error) {
+	if s.client == nil {
+		return "", fmt.Errorf("redis not available")
+	}
 	key := refreshKeyPrefix + hashToken(refreshToken)
 	userID, err := s.client.Get(ctx, key).Result()
 	if err != nil {
@@ -62,11 +74,17 @@ func (s *Store) ValidateRefreshToken(ctx context.Context, refreshToken string) (
 }
 
 func (s *Store) DeleteRefreshToken(ctx context.Context, refreshToken string) error {
+	if s.client == nil {
+		return nil
+	}
 	key := refreshKeyPrefix + hashToken(refreshToken)
 	return s.client.Del(ctx, key).Err()
 }
 
 func (s *Store) DeleteUserSessions(ctx context.Context, userID string) error {
+	if s.client == nil {
+		return nil
+	}
 	pattern := refreshKeyPrefix + "*"
 	iter := s.client.Scan(ctx, 0, pattern, 0).Iterator()
 
@@ -88,11 +106,17 @@ func (s *Store) DeleteUserSessions(ctx context.Context, userID string) error {
 }
 
 func (s *Store) CreateSession(ctx context.Context, sessionID, userID string, ttl time.Duration) error {
+	if s.client == nil {
+		return fmt.Errorf("redis not available")
+	}
 	key := sessionKeyPrefix + sessionID
 	return s.client.Set(ctx, key, userID, ttl).Err()
 }
 
 func (s *Store) GetSession(ctx context.Context, sessionID string) (string, error) {
+	if s.client == nil {
+		return "", fmt.Errorf("redis not available")
+	}
 	key := sessionKeyPrefix + sessionID
 	userID, err := s.client.Get(ctx, key).Result()
 	if err != nil {
@@ -105,6 +129,9 @@ func (s *Store) GetSession(ctx context.Context, sessionID string) (string, error
 }
 
 func (s *Store) DeleteSession(ctx context.Context, sessionID string) error {
+	if s.client == nil {
+		return nil
+	}
 	key := sessionKeyPrefix + sessionID
 	return s.client.Del(ctx, key).Err()
 }
