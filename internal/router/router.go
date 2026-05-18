@@ -21,11 +21,11 @@ type Router struct {
 	*chi.Mux
 }
 
-func New(cfg config.Config) *Router {
+func New(cfg config.Config, authH *handler.AuthHandler) *Router {
 	r := chi.NewRouter()
 
 	setupMiddleware(r, cfg)
-	setupRoutes(r, cfg)
+	setupRoutes(r, cfg, authH)
 
 	return &Router{Mux: r}
 }
@@ -61,13 +61,13 @@ func setupMiddleware(r *chi.Mux, cfg config.Config) {
 	})
 }
 
-func setupRoutes(r *chi.Mux, cfg config.Config) {
+func setupRoutes(r *chi.Mux, cfg config.Config, authH *handler.AuthHandler) {
 	r.Get("/", templ.Handler(web.LoginForm()).ServeHTTP)
 
 	r.Route("/api/v1", func(r chi.Router) {
-		r.Post("/auth/login", handler.Login)
-		r.Post("/auth/register", handler.Register)
-		r.Post("/auth/refresh", handler.Refresh)
+		r.Post("/auth/login", authH.Login)
+		r.Post("/auth/register", authH.Register)
+		r.Post("/auth/refresh", authH.Refresh)
 
 		r.Group(func(r chi.Router) {
 			r.Use(middleware.Auth([]byte(cfg.JWTSecret)))

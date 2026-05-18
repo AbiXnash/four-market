@@ -9,15 +9,19 @@ import (
 
 	"github.com/AbiXnash/4-market/internal/config"
 	"github.com/AbiXnash/4-market/internal/handler"
+	"github.com/AbiXnash/4-market/internal/repository"
 	"github.com/AbiXnash/4-market/internal/router"
+	"github.com/AbiXnash/4-market/internal/service"
 )
 
 func Start(ctx context.Context) {
 	cfg := config.Load()
 
-	handler.InitAuth(cfg.JWTSecret, cfg.JWTAccessTTL, cfg.JWTRefreshTTL)
+	userRepo := repository.NewUserRepo()
+	authSvc := service.NewAuthService(userRepo, cfg.JWTSecret, cfg.JWTAccessTTL, cfg.JWTRefreshTTL)
+	authH := handler.NewAuthHandler(authSvc)
 
-	r := router.New(cfg)
+	r := router.New(cfg, authH)
 
 	srv := &http.Server{
 		Addr:              fmt.Sprintf(":%s", cfg.Port),

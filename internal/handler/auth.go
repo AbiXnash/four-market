@@ -2,129 +2,79 @@ package handler
 
 import (
 	"encoding/json"
+	"errors"
 	"net/http"
-	"time"
 
+	"github.com/AbiXnash/4-market/internal/dto"
 	"github.com/AbiXnash/4-market/internal/response"
-	"github.com/AbiXnash/4-market/internal/security"
-	"github.com/AbiXnash/4-market/internal/validator"
+	"github.com/AbiXnash/4-market/internal/service"
 )
 
-type authDeps struct {
-	jwtSecret  []byte
-	accessTTL  time.Duration
-	refreshTTL time.Duration
+type AuthHandler struct {
+	service *service.AuthService
 }
 
-type loginRequest struct {
-	Email    string `json:"email" validate:"required,email"`
-	Password string `json:"password" validate:"required,min=8"`
+func NewAuthHandler(svc *service.AuthService) *AuthHandler {
+	return &AuthHandler{service: svc}
 }
 
-var Auth *authDeps
-
-func InitAuth(secret string, accessTTL, refreshTTL int) {
-	Auth = &authDeps{
-		jwtSecret:  []byte(secret),
-		accessTTL:  time.Duration(accessTTL) * time.Minute,
-		refreshTTL: time.Duration(refreshTTL) * time.Minute,
-	}
-}
-
-func Login(w http.ResponseWriter, r *http.Request) {
-	var req loginRequest
+func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
+	var req dto.LoginRequest
 	if err := decodeJSON(r, &req); err != nil {
 		response.ValidationError(w, r, "invalid request body")
 		return
 	}
 
-	if err := validator.Struct(req); err != nil {
-		response.ValidationError(w, r, err.Error())
-		return
-	}
-
-	if Auth == nil {
-		response.InternalError(w, r)
-		return
-	}
-
-	// TODO: verify credentials against DB
-	accessToken, err := security.SignJWT("user-id", "user", Auth.jwtSecret, Auth.accessTTL)
+	resp, err := h.service.Login(r.Context(), req)
 	if err != nil {
+		if errors.Is(err, service.ErrInvalidCredentials) {
+			response.Unauthorized(w, r)
+			return
+		}
 		response.InternalError(w, r)
 		return
 	}
 
-	refreshToken, err := security.SignJWT("user-id", "refresh", Auth.jwtSecret, Auth.refreshTTL)
-	if err != nil {
-		response.InternalError(w, r)
-		return
-	}
-
-	response.JSON(w, http.StatusOK, map[string]string{
-		"access_token":  accessToken,
-		"refresh_token": refreshToken,
-	})
+	response.JSON(w, http.StatusOK, resp)
 }
 
-type registerRequest struct {
-	Email    string `json:"email" validate:"required,email"`
-	Password string `json:"password" validate:"required,password"`
-	Name     string `json:"name" validate:"required,min=2,max=100"`
-}
-
-func Register(w http.ResponseWriter, r *http.Request) {
-	var req registerRequest
+func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
+	var req dto.RegisterRequest
 	if err := decodeJSON(r, &req); err != nil {
 		response.ValidationError(w, r, "invalid request body")
 		return
 	}
 
-	if err := validator.Struct(req); err != nil {
-		response.ValidationError(w, r, err.Error())
-		return
-	}
-
-	if _, err := security.HashPassword(req.Password); err != nil {
+	if err := h.service.Register(r.Context(), req); err != nil {
+		if errors.Is(err, service.ErrEmailTaken) {
+			response.ValidationError(w, r, err.Error())
+			return
+		}
 		response.InternalError(w, r)
 		return
 	}
 
-	// TODO: store user in DB
-	response.JSON(w, http.StatusCreated, map[string]string{"message": "user created"})
+	response.JSON(w, http.StatusCreated, dto.MessageResponse{Message: "user created"})
 }
 
-type refreshRequest struct {
-	RefreshToken string `json:"refresh_token" validate:"required"`
-}
-
-func Refresh(w http.ResponseWriter, r *http.Request) {
-	var req refreshRequest
+func (h *AuthHandler) Refresh(w http.ResponseWriter, r *http.Request) {
+	var req dto.RefreshRequest
 	if err := decodeJSON(r, &req); err != nil {
 		response.ValidationError(w, r, "invalid request body")
 		return
 	}
 
-	if Auth == nil {
-		response.InternalError(w, r)
-		return
-	}
-
-	claims, err := security.ValidateJWT(req.RefreshToken, Auth.jwtSecret)
-	if err != nil || claims.Role != "refresh" {
-		response.Unauthorized(w, r)
-		return
-	}
-
-	accessToken, err := security.SignJWT(claims.UserID, "user", Auth.jwtSecret, Auth.accessTTL)
+	resp, err := h.service.Refresh(r.Context(), req)
 	if err != nil {
+		if errors.Is(err, service.ErrInvalidToken) {
+			response.Unauthorized(w, r)
+			return
+		}
 		response.InternalError(w, r)
 		return
 	}
 
-	response.JSON(w, http.StatusOK, map[string]string{
-		"access_token": accessToken,
-	})
+	response.JSON(w, http.StatusOK, resp)
 }
 
 func decodeJSON(r *http.Request, v any) error {
