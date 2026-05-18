@@ -27,15 +27,17 @@ func (h *UserHandler) GetCurrentUser(w http.ResponseWriter, r *http.Request) {
 
 	user, err := h.userRepo.FindByID(r.Context(), claims.UserID)
 	if err != nil {
-		slog.Error("failed to find user", "user_id", claims.UserID, "error", err)
+		slog.Error("user lookup failed", "user_id", claims.UserID, "error", err)
 		response.InternalError(w, r)
 		return
 	}
 	if user == nil {
+		slog.Warn("user not found for id in token", "user_id", claims.UserID)
 		response.NotFound(w, r)
 		return
 	}
 
+	slog.Debug("user data accessed", "user_id", user.ID, "email", user.Email)
 	response.JSON(w, http.StatusOK, map[string]any{
 		"id":    user.ID,
 		"email": user.Email,

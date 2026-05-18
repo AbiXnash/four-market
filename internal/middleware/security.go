@@ -73,11 +73,12 @@ func CSRFProtection(allowedOrigins []string) func(http.Handler) http.Handler {
 					origin := r.Header.Get("Origin")
 					referer := r.Header.Get("Referer")
 
-					if origin != "" && !originAllowed(origin, parsed) {
-						response.Forbidden(w, r)
-						return
+					originStr := origin
+					if originStr == "" {
+						originStr = referer
 					}
-					if origin == "" && referer != "" && !refererAllowed(referer, parsed) {
+
+					if originStr != "" && !isSameOrigin(originStr, r) && !originAllowed(originStr, parsed) && !refererAllowed(originStr, parsed) {
 						response.Forbidden(w, r)
 						return
 					}
@@ -86,6 +87,18 @@ func CSRFProtection(allowedOrigins []string) func(http.Handler) http.Handler {
 			next.ServeHTTP(w, r)
 		})
 	}
+}
+
+func isSameOrigin(rawurl string, r *http.Request) bool {
+	u, err := url.Parse(rawurl)
+	if err != nil || u.Host == "" {
+		return false
+	}
+	scheme := "http"
+	if r.TLS != nil {
+		scheme = "https"
+	}
+	return u.Host == r.Host && u.Scheme == scheme
 }
 
 func parseOrigins(origins []string) []*url.URL {

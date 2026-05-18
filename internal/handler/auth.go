@@ -98,18 +98,19 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	slog.Debug("Login Request: ", "request", req)
-
 	resp, err := h.service.Login(r.Context(), req)
 	if err != nil {
 		if errors.Is(err, service.ErrInvalidCredentials) {
+			slog.Warn("login failed: invalid credentials", "email", req.Email)
 			response.Unauthorized(w, r)
 			return
 		}
+		slog.Error("login failed: internal error", "email", req.Email, "error", err)
 		response.InternalError(w, r)
 		return
 	}
 
+	slog.Info("login successful", "email", req.Email)
 	response.JSON(w, http.StatusOK, resp)
 }
 
@@ -123,13 +124,16 @@ func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
 
 	if err := h.service.Register(r.Context(), req); err != nil {
 		if errors.Is(err, service.ErrEmailTaken) {
+			slog.Warn("register failed: email taken", "email", req.Email)
 			response.ValidationError(w, r, err.Error())
 			return
 		}
+		slog.Error("register failed: internal error", "email", req.Email, "error", err)
 		response.InternalError(w, r)
 		return
 	}
 
+	slog.Info("user registered", "email", req.Email)
 	response.JSON(w, http.StatusCreated, dto.MessageResponse{Message: "user created"})
 }
 
@@ -156,7 +160,7 @@ func (h *AuthHandler) Refresh(w http.ResponseWriter, r *http.Request) {
 
 	userID, err := h.redis.ValidateRefreshToken(r.Context(), refreshToken)
 	if err != nil {
-		slog.Debug("refresh token validation failed", "error", err)
+		slog.Warn("refresh failed: invalid token", "error", err)
 		response.Unauthorized(w, r)
 		return
 	}
@@ -180,6 +184,7 @@ func (h *AuthHandler) Refresh(w http.ResponseWriter, r *http.Request) {
 
 	setTokenCookies(w, accessToken, newRefreshToken, h.accessTTL, h.refreshTTL, h.secure)
 
+	slog.Info("token refreshed", "user_id", userID)
 	response.JSON(w, http.StatusOK, dto.AuthResponse{
 		AccessToken:  accessToken,
 		RefreshToken: newRefreshToken,
@@ -200,21 +205,23 @@ func (h *AuthHandler) FormLogin(w http.ResponseWriter, r *http.Request) {
 
 	resp, err := h.service.Login(r.Context(), req)
 	if err != nil {
-		slog.Debug("form login failed", "email", req.Email, "error", err)
+		slog.Warn("form login failed", "email", req.Email, "reason", "invalid credentials")
 		templ.Handler(web.LoginForm("invalid email or password")).ServeHTTP(w, r)
 		return
 	}
 
 	claims, err := security.ValidateJWT(resp.AccessToken, h.jwtSecret)
 	if err != nil {
+		slog.Error("form login: failed to validate generated token", "error", err)
 		response.InternalError(w, r)
 		return
 	}
 
 	if err := h.redis.CreateRefreshToken(r.Context(), claims.UserID, resp.RefreshToken, h.refreshTTL); err != nil {
-		slog.Warn("failed to store refresh token in redis, continuing", "error", err)
+		slog.Warn("redis unavailable, refresh token not persisted", "user_id", claims.UserID)
 	}
 
+	slog.Info("form login successful", "user_id", claims.UserID, "email", req.Email)
 	setTokenCookies(w, resp.AccessToken, resp.RefreshToken, h.accessTTL, h.refreshTTL, h.secure)
 	http.Redirect(w, r, "/app", http.StatusFound)
 }
@@ -238,11 +245,12 @@ func (h *AuthHandler) FormRegister(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := h.service.Register(r.Context(), req); err != nil {
-		slog.Debug("form register failed", "email", req.Email, "error", err)
+		slog.Warn("form register failed", "email", req.Email, "reason", err.Error())
 		templ.Handler(web.RegisterForm(err.Error())).ServeHTTP(w, r)
 		return
 	}
 
+	slog.Info("user registered via form", "email", req.Email, "name", req.Name)
 	http.Redirect(w, r, "/?registered=true", http.StatusFound)
 }
 
@@ -251,11 +259,12 @@ func (h *AuthHandler) FormLogout(w http.ResponseWriter, r *http.Request) {
 	cookie, err := r.Cookie("refresh_token")
 	if err == nil && cookie.Value != "" {
 		if err := h.redis.DeleteRefreshToken(r.Context(), cookie.Value); err != nil {
-			slog.Error("failed to delete refresh token from redis", "error", err)
+			slog.Warn("logout: failed to delete refresh token from redis", "error", err)
 		}
 	}
 
 	clearTokenCookies(w, h.secure)
+	slog.Info("user logged out")
 	http.Redirect(w, r, "/", http.StatusFound)
 }
 

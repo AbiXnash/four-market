@@ -42,6 +42,11 @@ func Init() (slog.Handler, string) {
 		AddSource:  true,
 		TimeFormat: "02 Jan 2006 03:04:05 PM",
 		ReplaceAttr: func(groups []string, a slog.Attr) slog.Attr {
+			if a.Key == slog.SourceKey {
+				if src, ok := a.Value.Any().(*slog.Source); ok && strings.Contains(src.File, "request_logger") {
+					return slog.Attr{}
+				}
+			}
 			if a.Key == slog.LevelKey && len(groups) == 0 {
 				switch l := a.Value.Any().(slog.Level); l {
 				case slog.LevelDebug:

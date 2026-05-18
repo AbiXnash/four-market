@@ -2,6 +2,7 @@ package middleware
 
 import (
 	"context"
+	"log/slog"
 	"net/http"
 	"strings"
 
@@ -33,12 +34,14 @@ func Auth(secret []byte) func(http.Handler) http.Handler {
 			}
 
 			if tokenString == "" {
+				slog.Warn("auth: no token provided", "path", r.URL.Path)
 				response.Unauthorized(w, r)
 				return
 			}
 
 			claims, err := security.ValidateJWT(tokenString, secret)
 			if err != nil {
+				slog.Warn("auth: invalid token", "path", r.URL.Path, "error", err)
 				response.Unauthorized(w, r)
 				return
 			}
