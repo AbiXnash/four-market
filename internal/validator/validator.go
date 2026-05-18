@@ -23,10 +23,10 @@ func init() {
 	})
 }
 
-func Struct(s interface{}) error {
+func Struct(s any) error {
 	return validate.Struct(s)
 }
 
-func Var(field interface{}, tag string) error {
+func Var(field any, tag string) error {
 	return validate.Var(field, tag)
 }

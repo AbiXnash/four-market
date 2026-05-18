@@ -1,6 +1,7 @@
 package app
 
 import (
+	"slices"
 	"time"
 
 	"github.com/AbiXnash/4-market/internal/config"
@@ -15,6 +16,32 @@ import (
 func NewRouter(cfg config.Config) *chi.Mux {
 	r := chi.NewRouter()
 
+	registerMiddleware(r, cfg)
+	registerRoutes(r, cfg)
+	return r
+}
+
+func registerRoutes(r *chi.Mux, cfg config.Config) {
+	// --- API v1 routes ---
+	r.Route("/api/v1", func(r chi.Router) {
+
+		// public endpoints
+		r.Post("/auth/login", handler.Login)
+		r.Post("/auth/register", handler.Register)
+		r.Post("/auth/refresh", handler.Refresh)
+
+		// authenticated endpoints
+		r.Group(func(r chi.Router) {
+			r.Use(middleware.AuthMiddleware([]byte(cfg.JWTSecret)))
+			r.Get("/user", handler.Greet)
+		})
+	})
+
+	// legacy root
+	r.Get("/", handler.Greet)
+}
+
+func registerMiddleware(r *chi.Mux, cfg config.Config) {
 	// --- core infrastructure ---
 	r.Use(chiMiddleware.RequestID)
 	r.Use(chiMiddleware.RealIP)
@@ -36,13 +63,7 @@ func NewRouter(cfg config.Config) *chi.Mux {
 	r.Use(chiMiddleware.AllowContentType("application/json"))
 
 	// --- CORS ---
-	hasWildcard := false
-	for _, o := range cfg.CORSAllowedOrigins {
-		if o == "*" {
-			hasWildcard = true
-			break
-		}
-	}
+	hasWildcard := slices.Contains(cfg.CORSAllowedOrigins, "*")
 
 	r.Use(cors.Handler(cors.Options{
 		AllowedOrigins:   cfg.CORSAllowedOrigins,
@@ -56,23 +77,4 @@ func NewRouter(cfg config.Config) *chi.Mux {
 	// --- CSRF protection (defense-in-depth) ---
 	r.Use(middleware.CSRFProtection(cfg.CORSAllowedOrigins))
 
-	// --- API v1 routes ---
-	r.Route("/api/v1", func(r chi.Router) {
-
-		// public endpoints
-		r.Post("/auth/login", handler.Login)
-		r.Post("/auth/register", handler.Register)
-		r.Post("/auth/refresh", handler.Refresh)
-
-		// authenticated endpoints
-		r.Group(func(r chi.Router) {
-			r.Use(middleware.AuthMiddleware([]byte(cfg.JWTSecret)))
-			r.Get("/user", handler.Greet)
-		})
-	})
-
-	// legacy root
-	r.Get("/", handler.Greet)
-
-	return r
 }

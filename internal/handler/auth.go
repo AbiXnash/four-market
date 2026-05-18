@@ -11,9 +11,14 @@ import (
 )
 
 type authDeps struct {
-	jwtSecret    []byte
-	accessTTL    time.Duration
-	refreshTTL   time.Duration
+	jwtSecret  []byte
+	accessTTL  time.Duration
+	refreshTTL time.Duration
+}
+
+type loginRequest struct {
+	Email    string `json:"email" validate:"required,email"`
+	Password string `json:"password" validate:"required,min=8"`
 }
 
 var Auth *authDeps
@@ -24,11 +29,6 @@ func InitAuth(secret string, accessTTL, refreshTTL int) {
 		accessTTL:  time.Duration(accessTTL) * time.Minute,
 		refreshTTL: time.Duration(refreshTTL) * time.Minute,
 	}
-}
-
-type loginRequest struct {
-	Email    string `json:"email" validate:"required,email"`
-	Password string `json:"password" validate:"required,min=8"`
 }
 
 func Login(w http.ResponseWriter, r *http.Request) {
@@ -127,7 +127,7 @@ func Refresh(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-func decodeJSON(r *http.Request, v interface{}) error {
+func decodeJSON(r *http.Request, v any) error {
 	defer r.Body.Close()
 	return json.NewDecoder(r.Body).Decode(v)
 }
