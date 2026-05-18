@@ -11,52 +11,49 @@ import (
 )
 
 type Config struct {
-	Port              string
+	Port               string
 	CORSAllowedOrigins []string
-	MaxRequestBody    int64
-	JWTSecret         string
-	JWTAccessTTL      int // minutes
-	JWTRefreshTTL     int // minutes
-	TLSEnabled        bool
-	TLSCertFile       string
-	TLSKeyFile        string
+	MaxRequestBody     int64
+	JWTSecret          string
+	JWTAccessTTL       int // minutes
+	JWTRefreshTTL      int // minutes
+	TLSEnabled         bool
+	TLSCertFile        string
+	TLSKeyFile         string
 }
 
 func Load() Config {
 	root, err := os.Getwd()
-
 	if err != nil {
 		slog.Error("failed to get working directory")
 		os.Exit(1)
 	}
 
+	// .env is local-only; production uses real env vars
 	envPath := filepath.Join(root, ".env")
-
-	slog.Debug("Looking for env in ", "path", envPath)
-
-	err = godotenv.Load(envPath)
-
-	if err != nil {
-		slog.Error(".env file not loaded")
-		os.Exit(1)
+	if err := godotenv.Load(envPath); err != nil {
+		slog.Debug("no .env file found, using system environment")
 	}
 
 	port := os.Getenv("PORT")
 	if port == "" {
-		slog.Error("PORT is missing")
-		os.Exit(1)
+		port = "2929"
 	}
 
 	corsOriginsStr := os.Getenv("CORS_ALLOWED_ORIGINS")
 	var corsOrigins []string
 	if corsOriginsStr != "" {
 		corsOrigins = strings.Split(corsOriginsStr, ",")
+	} else if os.Getenv("PORT") == "" {
+		// no .env and no system env → dev defaults
+		corsOrigins = []string{"http://localhost:5173", "http://localhost:3000"}
 	} else {
-		corsOrigins = []string{"*"}
+		// production without explicit setting — restrict
+		corsOrigins = []string{}
 	}
 
 	maxBodyStr := os.Getenv("MAX_REQUEST_BODY")
-	maxBody := int64(1 << 20) // 1MB
+	maxBody := int64(1 << 20)
 	if maxBodyStr != "" {
 		if v, err := strconv.ParseInt(maxBodyStr, 10, 64); err == nil && v > 0 {
 			maxBody = v
@@ -76,20 +73,20 @@ func Load() Config {
 
 	jwtRefreshTTL, _ := strconv.Atoi(os.Getenv("JWT_REFRESH_TTL"))
 	if jwtRefreshTTL <= 0 {
-		jwtRefreshTTL = 10080 // 7 days
+		jwtRefreshTTL = 10080
 	}
 
 	tlsEnabled, _ := strconv.ParseBool(os.Getenv("TLS_ENABLED"))
 
 	return Config{
-		Port:              port,
+		Port:               port,
 		CORSAllowedOrigins: corsOrigins,
-		MaxRequestBody:    maxBody,
-		JWTSecret:         jwtSecret,
-		JWTAccessTTL:      jwtAccessTTL,
-		JWTRefreshTTL:     jwtRefreshTTL,
-		TLSEnabled:        tlsEnabled,
-		TLSCertFile:       os.Getenv("TLS_CERT_FILE"),
-		TLSKeyFile:        os.Getenv("TLS_KEY_FILE"),
+		MaxRequestBody:     maxBody,
+		JWTSecret:          jwtSecret,
+		JWTAccessTTL:       jwtAccessTTL,
+		JWTRefreshTTL:      jwtRefreshTTL,
+		TLSEnabled:         tlsEnabled,
+		TLSCertFile:        os.Getenv("TLS_CERT_FILE"),
+		TLSKeyFile:         os.Getenv("TLS_KEY_FILE"),
 	}
 }
