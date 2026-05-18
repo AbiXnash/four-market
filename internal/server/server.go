@@ -7,9 +7,9 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/AbiXnash/4-market/internal/app"
 	"github.com/AbiXnash/4-market/internal/config"
 	"github.com/AbiXnash/4-market/internal/handler"
+	"github.com/AbiXnash/4-market/internal/router"
 )
 
 func Start(ctx context.Context) {
@@ -17,7 +17,7 @@ func Start(ctx context.Context) {
 
 	handler.InitAuth(cfg.JWTSecret, cfg.JWTAccessTTL, cfg.JWTRefreshTTL)
 
-	r := app.NewRouter(cfg)
+	r := router.New(cfg)
 
 	srv := &http.Server{
 		Addr:              fmt.Sprintf(":%s", cfg.Port),

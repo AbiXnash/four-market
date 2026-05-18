@@ -16,7 +16,7 @@ type ctxKey string
 
 const RequestIDKey ctxKey = "request_id"
 
-func NewSecurityHandler() func(http.Handler) http.Handler {
+func SecurityHeaders() func(http.Handler) http.Handler {
 	sec := secure.New(secure.Options{
 		FrameDeny:             true,
 		ContentTypeNosniff:    true,
