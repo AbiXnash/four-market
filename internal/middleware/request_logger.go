@@ -18,10 +18,7 @@ func (rw *responseWriter) WriteHeader(code int) {
 }
 
 func LoggerMiddleware(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(
-		w http.ResponseWriter,
-		r *http.Request,
-	) {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		start := time.Now()
 
 		rw := &responseWriter{
@@ -31,12 +28,18 @@ func LoggerMiddleware(next http.Handler) http.Handler {
 
 		next.ServeHTTP(rw, r)
 
-		rec := slog.NewRecord(
-			time.Now(),
-			slog.LevelInfo,
-			fmt.Sprintf("%s | %s | [%d %s] | %s", r.Method, r.URL.Path, rw.status, http.StatusText(rw.status), time.Since(start).Round(time.Microsecond)),
-			0,
+		duration := time.Since(start).Round(time.Microsecond)
+		reqID, _ := r.Context().Value(RequestIDKey).(string)
+
+		slog.LogAttrs(r.Context(), slog.LevelInfo,
+			fmt.Sprintf("%s %s", r.Method, r.URL.Path),
+			slog.String("method", r.Method),
+			slog.String("path", r.URL.Path),
+			slog.Int("status", rw.status),
+			slog.Duration("duration", duration),
+			slog.String("remote_ip", r.RemoteAddr),
+			slog.String("request_id", reqID),
+			slog.String("user_agent", r.UserAgent()),
 		)
-		_ = slog.Default().Handler().Handle(r.Context(), rec)
 	})
 }

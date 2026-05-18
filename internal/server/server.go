@@ -9,21 +9,37 @@ import (
 
 	"github.com/AbiXnash/4-market/internal/app"
 	"github.com/AbiXnash/4-market/internal/config"
+	"github.com/AbiXnash/4-market/internal/handler"
 )
 
 func Start(ctx context.Context) {
 	cfg := config.Load()
 
-	r := app.NewRouter()
+	handler.InitAuth(cfg.JWTSecret, cfg.JWTAccessTTL, cfg.JWTRefreshTTL)
+
+	r := app.NewRouter(cfg)
 
 	srv := &http.Server{
-		Addr:    fmt.Sprintf(":%s", cfg.Port),
-		Handler: r,
+		Addr:              fmt.Sprintf(":%s", cfg.Port),
+		Handler:           r,
+		ReadHeaderTimeout: 5 * time.Second,
+		ReadTimeout:       10 * time.Second,
+		WriteTimeout:      10 * time.Second,
+		IdleTimeout:       120 * time.Second,
+		MaxHeaderBytes:    1 << 16,
 	}
 
 	go func() {
-		slog.Info("Server started", "port", cfg.Port)
-		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+		slog.Info("Server started", "port", cfg.Port, "tls", cfg.TLSEnabled)
+
+		var err error
+		if cfg.TLSEnabled {
+			err = srv.ListenAndServeTLS(cfg.TLSCertFile, cfg.TLSKeyFile)
+		} else {
+			err = srv.ListenAndServe()
+		}
+
+		if err != nil && err != http.ErrServerClosed {
 			slog.Error("Server error", "error", err)
 		}
 	}()
