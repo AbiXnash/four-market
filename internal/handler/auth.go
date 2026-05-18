@@ -34,30 +34,30 @@ func InitAuth(secret string, accessTTL, refreshTTL int) {
 func Login(w http.ResponseWriter, r *http.Request) {
 	var req loginRequest
 	if err := decodeJSON(r, &req); err != nil {
-		response.ValidationError(w, "invalid request body")
+		response.ValidationError(w, r, "invalid request body")
 		return
 	}
 
 	if err := validator.Struct(req); err != nil {
-		response.ValidationError(w, err.Error())
+		response.ValidationError(w, r, err.Error())
 		return
 	}
 
 	if Auth == nil {
-		response.InternalError(w)
+		response.InternalError(w, r)
 		return
 	}
 
 	// TODO: verify credentials against DB
 	accessToken, err := security.SignJWT("user-id", "user", Auth.jwtSecret, Auth.accessTTL)
 	if err != nil {
-		response.InternalError(w)
+		response.InternalError(w, r)
 		return
 	}
 
 	refreshToken, err := security.SignJWT("user-id", "refresh", Auth.jwtSecret, Auth.refreshTTL)
 	if err != nil {
-		response.InternalError(w)
+		response.InternalError(w, r)
 		return
 	}
 
@@ -76,17 +76,17 @@ type registerRequest struct {
 func Register(w http.ResponseWriter, r *http.Request) {
 	var req registerRequest
 	if err := decodeJSON(r, &req); err != nil {
-		response.ValidationError(w, "invalid request body")
+		response.ValidationError(w, r, "invalid request body")
 		return
 	}
 
 	if err := validator.Struct(req); err != nil {
-		response.ValidationError(w, err.Error())
+		response.ValidationError(w, r, err.Error())
 		return
 	}
 
 	if _, err := security.HashPassword(req.Password); err != nil {
-		response.InternalError(w)
+		response.InternalError(w, r)
 		return
 	}
 
@@ -101,24 +101,24 @@ type refreshRequest struct {
 func Refresh(w http.ResponseWriter, r *http.Request) {
 	var req refreshRequest
 	if err := decodeJSON(r, &req); err != nil {
-		response.ValidationError(w, "invalid request body")
+		response.ValidationError(w, r, "invalid request body")
 		return
 	}
 
 	if Auth == nil {
-		response.InternalError(w)
+		response.InternalError(w, r)
 		return
 	}
 
 	claims, err := security.ValidateJWT(req.RefreshToken, Auth.jwtSecret)
 	if err != nil || claims.Role != "refresh" {
-		response.Unauthorized(w)
+		response.Unauthorized(w, r)
 		return
 	}
 
 	accessToken, err := security.SignJWT(claims.UserID, "user", Auth.jwtSecret, Auth.accessTTL)
 	if err != nil {
-		response.InternalError(w)
+		response.InternalError(w, r)
 		return
 	}
 

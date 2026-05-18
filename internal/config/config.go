@@ -37,7 +37,7 @@ func Load() Config {
 
 	port := os.Getenv("PORT")
 	if port == "" {
-		port = "2929"
+		port = "2323"
 	}
 
 	corsOriginsStr := os.Getenv("CORS_ALLOWED_ORIGINS")

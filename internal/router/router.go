@@ -8,6 +8,7 @@ import (
 	"github.com/AbiXnash/4-market/internal/config"
 	"github.com/AbiXnash/4-market/internal/handler"
 	"github.com/AbiXnash/4-market/internal/middleware"
+	"github.com/AbiXnash/4-market/internal/response"
 	"github.com/go-chi/chi/v5"
 	chiMiddleware "github.com/go-chi/chi/v5/middleware"
 	"github.com/go-chi/cors"
@@ -28,18 +29,34 @@ func New(cfg config.Config) *Router {
 }
 
 func setupMiddleware(r *chi.Mux, cfg config.Config) {
-	r.Use(chiMiddleware.RequestID)
 	r.Use(chiMiddleware.RealIP)
 	r.Use(middleware.RequestID)
 	r.Use(middleware.Logger)
-	r.Use(chiMiddleware.Recoverer)
+	r.Use(middleware.RecoverJSON)
 	r.Use(chiMiddleware.CleanPath)
 	r.Use(middleware.SecurityHeaders())
-	r.Use(httprate.LimitByIP(100, 1*time.Minute))
+	r.Use(httprate.Limit(
+		100,
+		1*time.Minute,
+		httprate.WithKeyByIP(),
+		httprate.WithLimitHandler(func(w http.ResponseWriter, r *http.Request) {
+			response.TooManyRequests(w, r)
+		}),
+		httprate.WithErrorHandler(func(w http.ResponseWriter, r *http.Request, err error) {
+			response.Error(w, r, http.StatusInternalServerError, "rate_limiter_error", "failed to evaluate rate limit")
+		}),
+	))
 	r.Use(middleware.RequestBodyLimiter(cfg.MaxRequestBody))
-	r.Use(chiMiddleware.AllowContentType("application/json"))
+	r.Use(middleware.AllowJSONContentType)
 	r.Use(corsHandler(cfg.CORSAllowedOrigins))
 	r.Use(middleware.CSRFProtection(cfg.CORSAllowedOrigins))
+
+	r.NotFound(func(w http.ResponseWriter, r *http.Request) {
+		response.NotFound(w, r)
+	})
+	r.MethodNotAllowed(func(w http.ResponseWriter, r *http.Request) {
+		response.MethodNotAllowed(w, r)
+	})
 }
 
 func setupRoutes(r *chi.Mux, cfg config.Config) {

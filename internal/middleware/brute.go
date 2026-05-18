@@ -4,6 +4,8 @@ import (
 	"net/http"
 	"sync"
 	"time"
+
+	"github.com/AbiXnash/4-market/internal/response"
 )
 
 type bruteEntry struct {
@@ -75,7 +77,7 @@ func (b *BruteForceProtector) Middleware(keyFunc func(*http.Request) string) fun
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			key := keyFunc(r)
 			if !b.Allow(key) {
-				http.Error(w, "too many requests", http.StatusTooManyRequests)
+				response.TooManyRequests(w, r)
 				return
 			}
 			next.ServeHTTP(w, r)

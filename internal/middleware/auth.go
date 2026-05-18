@@ -18,19 +18,19 @@ func Auth(secret []byte) func(http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			authHeader := r.Header.Get("Authorization")
 			if authHeader == "" {
-				response.Unauthorized(w)
+				response.Unauthorized(w, r)
 				return
 			}
 
 			parts := strings.SplitN(authHeader, " ", 2)
 			if len(parts) != 2 || !strings.EqualFold(parts[0], "Bearer") {
-				response.Error(w, http.StatusUnauthorized, "invalid authorization header")
+				response.Error(w, r, http.StatusUnauthorized, "invalid_authorization_header", "invalid authorization header")
 				return
 			}
 
 			claims, err := security.ValidateJWT(parts[1], secret)
 			if err != nil {
-				response.Unauthorized(w)
+				response.Unauthorized(w, r)
 				return
 			}
 
@@ -45,7 +45,7 @@ func RequireRole(role string) func(http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			claims, ok := r.Context().Value(UserKey).(*security.Claims)
 			if !ok || claims.Role != role {
-				response.Forbidden(w)
+				response.Forbidden(w, r)
 				return
 			}
 			next.ServeHTTP(w, r)

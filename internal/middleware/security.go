@@ -9,6 +9,7 @@ import (
 	"net/url"
 	"strings"
 
+	"github.com/AbiXnash/4-market/internal/response"
 	"github.com/unrolled/secure"
 )
 
@@ -54,6 +55,7 @@ func RequestID(next http.Handler) http.Handler {
 			id = hex.EncodeToString(b)
 		}
 		w.Header().Set("X-Request-ID", id)
+		r.Header.Set("X-Request-ID", id)
 		ctx := context.WithValue(r.Context(), RequestIDKey, id)
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})
@@ -72,11 +74,11 @@ func CSRFProtection(allowedOrigins []string) func(http.Handler) http.Handler {
 					referer := r.Header.Get("Referer")
 
 					if origin != "" && !originAllowed(origin, parsed) {
-						http.Error(w, "Forbidden", http.StatusForbidden)
+						response.Forbidden(w, r)
 						return
 					}
 					if origin == "" && referer != "" && !refererAllowed(referer, parsed) {
-						http.Error(w, "Forbidden", http.StatusForbidden)
+						response.Forbidden(w, r)
 						return
 					}
 				}
